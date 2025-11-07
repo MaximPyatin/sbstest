@@ -1,3 +1,7 @@
 ﻿psycopg[binary]==3.2.12
 alembic==1.13.2
 sqlalchemy==2.0.35
+temporalio==1.18.2
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2

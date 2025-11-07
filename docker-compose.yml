@@ -17,5 +17,39 @@
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  temporal:
+    image: temporalio/auto-setup:1.23.0
+    container_name: temporal-server
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PWD=secret
+      - POSTGRES_SEEDS=db
+      - SKIP_DB_CREATE=false
+      - SKIP_DB_SETUP=false
+      - SKIP_DEFAULT_NAMESPACE_CREATION=false
+    ports:
+      - "7233:7233"
+      - "8088:8088"
+    volumes:
+      - temporal_data:/var/lib/temporal
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.23.0
+    container_name: temporal-admin-tools
+    restart: always
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    entrypoint: /bin/sleep
+    command: infinity
+
 volumes:
   postgres_data:
+  temporal_data:
