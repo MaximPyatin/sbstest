@@ -4,7 +4,7 @@ from temporalio.worker import Worker
 
 from app.temporal.client import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, wait_for_temporal
 from app.workflows.test_workflow import TestWorkflow
-from app.activities.test_activity import test_activity
+from app.activities.test_activity import sample_activity
 
 
 async def run_worker():
@@ -19,7 +19,7 @@ async def run_worker():
         client,
         task_queue="test-task-queue",
         workflows=[TestWorkflow],
-        activities=[test_activity],
+        activities=[sample_activity],
     )
     
     print("Temporal Worker запущен, ожидание задач...")
