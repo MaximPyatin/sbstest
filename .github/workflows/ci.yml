@@ -92,7 +92,7 @@ jobs:
           provenance: false
 
       - name: Generate SBOM (SPDX)
-        uses: anchore/syft-action@v0.16.0
+        uses: anchore/syft-action@v0.17.0
         with:
           image: ${{ env.IMAGE_LOCAL_TAG }}
           output: spdx-json=sbom.spdx.json
