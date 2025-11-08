@@ -1,6 +1,9 @@
-﻿#E0: e0.1; e0.2 -  PostgreSQL + Alembic + Temporal
 
-Минимальный набор сервисов для запуска Temporal workflow c хранением состояния в PostgreSQL 18 и автоматическими миграциями через Alembic.
+## Платформа и CI/CD 
+
+E0.1–E0.3: PostgreSQL, Temporal, Redis, NATS
+
+Набор сервисов для старта платформы: PostgreSQL 18 с Alembic, Temporal Server + worker, Redis и NATS, а также FastAPI для проверки интеграций.
 
 ## Быстрый старт
 
@@ -11,29 +14,42 @@
    pip install -r requirements.txt
    ```
 
-3. **Поднимите инфраструктуру (PostgreSQL + Temporal)**:
+2. **Поднимите контейнеры (PostgreSQL, Temporal, Redis, NATS)**:
    ```powershell
    docker-compose up -d
    ```
 
-4. **Примените миграции** (один из вариантов):
+3. **Примените миграции**:
    ```powershell
-   alembic upgrade head         # вручную
-   python entrypoint.py         # то же самое автоматически
+   alembic upgrade head   # вручную
+   python entrypoint.py   # автоматически + SELECT 1
    ```
 
-5. **Стартуйте Temporal worker и API** в отдельных терминалах:
+4. **Запустите worker и API** (разные терминалы):
    ```powershell
    python run_worker.py
    python run_api.py
    ```
 
-6. **Запустите тестовый workflow**:
+5. **Проверьте сервисы**:
    ```powershell
+   # Workflow + Temporal (возвращает run_id / workflow_id)
    Invoke-RestMethod -Uri http://localhost:8000/test-workflow `
      -Method Post `
      -Headers @{ "Content-Type" = "application/json" } `
      -Body '{"name": "TestUser"}'
+
+  # NATS (publish + subscribe за 1 секунду)
+   Invoke-RestMethod -Uri http://localhost:8000/nats/test `
+     -Method Post `
+     -Headers @{ "Content-Type" = "application/json" } `
+     -Body '{"message": "data"}'
+
+  # Redis (set/get)
+   Invoke-RestMethod -Uri http://localhost:8000/redis/test `
+     -Method Post `
+     -Headers @{ "Content-Type" = "application/json" } `
+     -Body '{"key": "test", "value": "val"}'
    ```
 
 ## Проверка DoD
@@ -41,29 +57,27 @@
 | Что проверить | Команда |
 | --- | --- |
 | PostgreSQL 18 запущен | `docker exec postgres-18 psql -U postgres -d app_db -c "SELECT version();"` |
-| Alembic применяет миграции | `alembic upgrade head` → появляется запись в `alembic_version` |
-| Проверка подключения из Python | `python entrypoint.py` (внутри вызывается `SELECT 1`) |
-| Temporal workflow выполнен | `Invoke-RestMethod …` (см. шаг 6) возвращает `run_id` |
-| Workflow завершён | `docker exec temporal-admin-tools tctl --namespace default workflow list` |
+| Alembic создаёт `alembic_version` | `alembic upgrade head` |
+| Авто-миграции и `SELECT 1` | `python entrypoint.py` |
+| Workflow получает `run_id` | `Invoke-RestMethod ... /test-workflow` |
+| Workflow завершён в Temporal | `docker exec temporal-admin-tools tctl --namespace default workflow list` |
+| NATS CLI | `docker exec nats nats pub test hello` + `docker exec nats nats sub test` |
+| Redis CLI и персистентность | `docker exec redis redis-cli set key val` + `docker exec redis redis-cli get key` |
 
-## Структура репозитория
+## Структура
 
-- `docker-compose.yml` — контейнеры PostgreSQL 18, Temporal Server и admin-tools.
-- `app/database.py` — SQLAlchemy engine и SessionLocal.
-- `alembic/` + `alembic.ini` — конфигурация и миграции БД.
-- `entrypoint.py` — ожидание БД и автоматический `alembic upgrade head`.
+- `docker-compose.yml` — контейнеры PostgreSQL, Temporal Server, Temporal admin-tools, Redis, NATS.
+- `alembic/`, `alembic.ini`, `entrypoint.py` — миграции и автоматический запуск.
+- `app/database.py` — SQLAlchemy engine/Session.
 - `app/temporal/` — клиент и worker Temporal.
+- `app/services/` — вспомогательные клиенты Redis (`cache.py`) и NATS (`nats_client.py`).
 - `app/workflows/`, `app/activities/` — тестовый workflow и activity.
-- `app/api/main.py` — FastAPI с endpoint `POST /test-workflow`.
-- `run_worker.py`, `run_api.py` — удобные точки входа для worker и API.
+- `app/api/main.py` — FastAPI (`/test-workflow`, `/nats/test`, `/redis/test`).
+- `run_worker.py`, `run_api.py` — точки запуска worker и API.
 
 ## Переменные окружения
 
-- `DATABASE_URL` (или `DATABASE_HOST/PORT/USER/PASSWORD/NAME`) — строка подключения к PostgreSQL.
-- `TEMPORAL_HOST`, `TEMPORAL_PORT`, `TEMPORAL_NAMESPACE` — параметры подключения Temporal SDK (по умолчанию `localhost:7233`, `default`).
-
-## Частые вопросы
-
-**Нужно ли запускать Alembic, worker и API разными командами?**
-
-Да. Alembic выполняет миграции однократно (например, в entrypoint или CI/CD), а worker и API — это отдельные процессы. Temporal по архитектуре предполагает, что worker живёт независимо и может масштабироваться отдельно от HTTP-API.
+- `DATABASE_URL` или `DATABASE_HOST/PORT/USER/PASSWORD/NAME` — PostgreSQL.
+- `TEMPORAL_HOST`, `TEMPORAL_PORT`, `TEMPORAL_NAMESPACE` — Temporal SDK (по умолчанию `localhost:7233`, `default`).
+- `REDIS_URL` — адрес Redis (`redis://localhost:6379/0` по умолчанию).
+- `NATS_URL`, `NATS_SUBJECT` — подключение к NATS (`nats://localhost:4222`, `backup.test`).

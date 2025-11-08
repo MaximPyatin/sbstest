@@ -50,6 +50,34 @@
     entrypoint: /bin/sleep
     command: infinity
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  nats:
+    image: nats:2.10.11-alpine
+    container_name: nats
+    restart: always
+    command:
+      - --jetstream
+      - --store_dir
+      - /var/lib/nats
+      - --http_port
+      - "8222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/var/lib/nats
+
 volumes:
   postgres_data:
   temporal_data:
+  redis_data:
+  nats_data:
