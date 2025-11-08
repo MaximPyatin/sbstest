@@ -11,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from temporalio import exceptions as temporal_exceptions
@@ -83,9 +83,7 @@ class SystemSettingResponse(BaseModel):
     description: str | None
     created_at: datetime
     updated_at: datetime | None
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SystemSettingPayload(BaseModel):

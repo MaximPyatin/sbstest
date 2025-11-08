@@ -2,9 +2,9 @@
 alembic==1.13.2
 sqlalchemy==2.0.35
 temporalio==1.18.2
-fastapi==0.103.2
-uvicorn[standard]==0.23.2
-pydantic==1.10.15
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.9.2
 redis==5.0.1
 nats-py==2.7.2
 pytest==8.4.2
