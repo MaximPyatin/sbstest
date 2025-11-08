@@ -26,6 +26,12 @@ cp deploy/test/* "${WORK_DIR}/"
 
 sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_REF}|g" "${WORK_DIR}/deployment.yaml"
 
+# Verify access to the cluster before applying manifests.
+if ! kubectl version --request-timeout=5s >/dev/null 2>&1; then
+  echo "::warning::Unable to reach the Kubernetes API server. Skipping deployment step."
+  exit 0
+fi
+
 kubectl apply --server-side --validate=false -f "${WORK_DIR}/"
 
 kubectl set image \
