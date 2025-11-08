@@ -14,7 +14,9 @@ if config.config_file_name is not None:
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
+    """Настраивает Alembic на генерацию SQL без подключения к базе данных."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -26,7 +28,9 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
+    """Настраивает Alembic на выполнение миграций прямо в базе данных."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -40,6 +44,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

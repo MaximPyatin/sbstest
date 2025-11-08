@@ -1,6 +1,10 @@
+"""Точка входа для запуска API в режиме разработки с авто-перезапуском."""
+
 import uvicorn
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Запускает сервис API под управлением uvicorn в режиме разработки."""
     uvicorn.run(
         "app.api.main:app",
         host="0.0.0.0",
@@ -8,5 +12,8 @@ if __name__ == "__main__":
         reload=True,
     )
 
+
+if __name__ == "__main__":
+    main()
 
 

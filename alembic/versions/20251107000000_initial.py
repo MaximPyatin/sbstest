@@ -9,6 +9,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Создаёт базовую таблицу system_settings для хранения метаданных платформы."""
     op.create_table(
         "system_settings",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -38,5 +39,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Удаляет таблицу system_settings и связанные индексы."""
     op.drop_index("ix_system_settings_key", table_name="system_settings")
     op.drop_table("system_settings")
