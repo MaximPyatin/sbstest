@@ -55,6 +55,11 @@
     container_name: redis
     restart: always
     command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "6379:6379"
     volumes:
@@ -75,6 +80,65 @@
       - "8222:8222"
     volumes:
       - nats_data:/var/lib/nats
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sbs-api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: secret
+      DATABASE_NAME: app_db
+      TEMPORAL_HOST: temporal
+      TEMPORAL_PORT: "7233"
+      TEMPORAL_NAMESPACE: default
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ENVIRONMENT: local
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sbs-worker
+    restart: always
+    command: ["python", "run_worker.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: secret
+      DATABASE_NAME: app_db
+      TEMPORAL_HOST: temporal
+      TEMPORAL_PORT: "7233"
+      TEMPORAL_NAMESPACE: default
+      REDIS_URL: redis://redis:6379/0
+      NATS_URL: nats://nats:4222
+      ENVIRONMENT: local
 
 volumes:
   postgres_data:

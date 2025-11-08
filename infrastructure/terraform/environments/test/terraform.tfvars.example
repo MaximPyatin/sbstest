@@ -1,0 +1,14 @@
+aws_region  = "us-east-1"
+name_prefix = "sbs-test"
+
+# Provide the AMI that should be used for the bastion host.
+bastion_ami_id = "ami-xxxxxxxx"
+
+# Optional: restrict SSH access to the bastion.
+# bastion_ssh_cidr_blocks = ["203.0.113.0/24"]
+
+# Example of attaching additional IAM policies to the worker node role.
+# eks_node_role_additional_policies = [
+#   "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+# ]
+

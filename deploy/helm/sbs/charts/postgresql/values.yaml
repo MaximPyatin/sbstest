@@ -1,0 +1,27 @@
+image:
+  repository: postgres
+  tag: "18"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+auth:
+  username: postgres
+  password: secret
+  database: app_db
+
+service:
+  type: ClusterIP
+  port: 5432
+
+storage:
+  enabled: true
+  size: 10Gi
+  className: ""
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+

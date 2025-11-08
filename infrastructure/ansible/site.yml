@@ -1,0 +1,43 @@
+---
+- name: Prepare all hosts
+  hosts: all
+  become: true
+  roles:
+    - role: common
+
+- name: Install container runtime
+  hosts: database:temporal:cache:messaging:application
+  become: true
+  roles:
+    - role: docker
+
+- name: Provision PostgreSQL
+  hosts: database
+  become: true
+  roles:
+    - role: postgresql
+
+- name: Provision Temporal services
+  hosts: temporal
+  become: true
+  roles:
+    - role: temporal
+
+- name: Provision Redis
+  hosts: cache
+  become: true
+  roles:
+    - role: redis
+
+- name: Provision NATS
+  hosts: messaging
+  become: true
+  roles:
+    - role: nats
+
+- name: Deploy SBS application
+  hosts: application
+  become: true
+  roles:
+    - role: sbs_api
+

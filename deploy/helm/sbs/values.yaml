@@ -1,0 +1,126 @@
+global:
+  environment: dev
+  imagePullSecrets: []
+  annotations: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+postgresql:
+  enabled: true
+  nameOverride: ""
+  fullnameOverride: ""
+  auth:
+    username: postgres
+    password: secret
+    database: app_db
+  storage:
+    enabled: true
+    size: 10Gi
+    className: ""
+  resources: {}
+
+temporal:
+  enabled: true
+  service:
+    type: ClusterIP
+    ports:
+      frontend: 7233
+      ui: 8088
+  database:
+    host: ""
+    port: 5432
+    user: postgres
+    password: secret
+  ui:
+    enabled: true
+    image:
+      repository: temporalio/ui
+      tag: 2.21.3
+    containerPort: 8080
+  persistence:
+    namespace: default
+  resources: {}
+
+redis:
+  enabled: true
+  storage:
+    enabled: true
+    size: 5Gi
+    className: ""
+  password: ""
+  resources: {}
+
+nats:
+  enabled: true
+  httpPort: 8222
+  clientPort: 4222
+  jetstream:
+    enabled: true
+    storage:
+      enabled: true
+      size: 5Gi
+      className: ""
+  resources: {}
+
+stack:
+  api:
+    replicaCount: 1
+    image:
+      repository: ghcr.io/example/sbs
+      tag: latest
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+      port: 80
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraEnv: []
+    extraEnvFrom: []
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 30
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPUUtilizationPercentage: 80
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts:
+        - host: api.local
+          paths:
+            - path: /
+              pathType: Prefix
+      tls: []
+
+  worker:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: ghcr.io/example/sbs
+      tag: latest
+      pullPolicy: IfNotPresent
+    command:
+      - python
+      - run_worker.py
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraEnv: []
+    extraEnvFrom: []
+

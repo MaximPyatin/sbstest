@@ -1,0 +1,7 @@
+apiVersion: v2
+name: redis
+description: Redis subchart for SBS stack.
+type: application
+version: 0.1.0
+appVersion: "7.4"
+

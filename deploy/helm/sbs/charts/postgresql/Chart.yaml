@@ -1,0 +1,7 @@
+apiVersion: v2
+name: postgresql
+description: PostgreSQL 18 subchart for SBS stack.
+type: application
+version: 0.1.0
+appVersion: "18"
+

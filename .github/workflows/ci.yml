@@ -157,10 +157,16 @@ jobs:
         with:
           version: "v1.30.4"
 
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.15.2"
+
       - name: Deploy to test cluster
         env:
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
           KUBE_NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+          IMAGE_PULL_SECRET: ${{ secrets.IMAGE_PULL_SECRET }}
         run: |
           chmod +x scripts/deploy_test.sh
           ./scripts/deploy_test.sh "${IMAGE_REF}"

@@ -1,0 +1,9 @@
+---
+postgresql_image: "postgres:18"
+postgresql_container_name: "sbs-postgresql"
+postgresql_db: "app_db"
+postgresql_user: "postgres"
+postgresql_password: "secret"
+postgresql_port: 5432
+postgresql_data_path: "/var/lib/sbs/postgresql"
+

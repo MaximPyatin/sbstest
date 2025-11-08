@@ -1,0 +1,29 @@
+---
+- name: Pull SBS image
+  when: sbs_api_pull | bool
+  community.docker.docker_image:
+    name: "{{ sbs_api_image }}"
+    source: pull
+
+- name: Run SBS API container
+  community.docker.docker_container:
+    name: "{{ sbs_api_container_name }}"
+    image: "{{ sbs_api_image }}"
+    restart_policy: always
+    published_ports:
+      - "{{ sbs_api_port }}:8000"
+    env: "{{ sbs_api_environment }}"
+    networks:
+      - name: sbs-network
+
+- name: Ensure SBS worker container is running
+  when: sbs_worker_enabled | bool
+  community.docker.docker_container:
+    name: "{{ sbs_worker_container_name }}"
+    image: "{{ sbs_api_image }}"
+    restart_policy: always
+    command: "{{ sbs_worker_command }}"
+    env: "{{ sbs_worker_environment }}"
+    networks:
+      - name: sbs-network
+

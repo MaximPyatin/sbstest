@@ -14,6 +14,8 @@ if [[ -z "${IMAGE_REF}" ]]; then
 fi
 
 NAMESPACE="${KUBE_NAMESPACE:-default}"
+RELEASE_NAME="${HELM_RELEASE:-sbs}"
+CHART_DIR="deploy/helm/sbs"
 
 WORK_DIR="$(mktemp -d)"
 KUBECONFIG_FILE="${WORK_DIR}/kubeconfig"
@@ -22,22 +24,39 @@ trap 'rm -rf "${WORK_DIR}"' EXIT
 echo "${KUBE_CONFIG_B64}" | base64 --decode > "${KUBECONFIG_FILE}"
 export KUBECONFIG="${KUBECONFIG_FILE}"
 
-cp deploy/test/* "${WORK_DIR}/"
-
-sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_REF}|g" "${WORK_DIR}/deployment.yaml"
-
 # Verify access to the cluster before applying manifests.
 if ! kubectl version --request-timeout=5s >/dev/null 2>&1; then
   echo "::warning::Unable to reach the Kubernetes API server. Skipping deployment step."
   exit 0
 fi
 
-kubectl apply --server-side --validate=false -f "${WORK_DIR}/"
+# Split image reference into repository and tag.
+IMAGE_REPOSITORY="${IMAGE_REF%:*}"
+IMAGE_TAG="${IMAGE_REF##*:}"
+if [[ "${IMAGE_REPOSITORY}" == "${IMAGE_TAG}" ]]; then
+  IMAGE_REPOSITORY="${IMAGE_REF}"
+  IMAGE_TAG="latest"
+fi
 
-kubectl set image \
-  deployment/sbs-api \
-  sbs-api="${IMAGE_REF}" \
-  --namespace "${NAMESPACE}"
+helm dependency build "${CHART_DIR}"
 
-kubectl rollout status deployment/sbs-api --namespace "${NAMESPACE}" --timeout=120s
+HELM_SET_ARGS=(
+  "--set" "global.environment=test"
+  "--set" "stack.api.image.repository=${IMAGE_REPOSITORY}"
+  "--set" "stack.api.image.tag=${IMAGE_TAG}"
+  "--set" "stack.api.image.pullPolicy=Always"
+  "--set" "stack.worker.image.repository=${IMAGE_REPOSITORY}"
+  "--set" "stack.worker.image.tag=${IMAGE_TAG}"
+  "--set" "stack.worker.image.pullPolicy=Always"
+)
 
+if [[ -n "${IMAGE_PULL_SECRET:-}" ]]; then
+  HELM_SET_ARGS+=("--set-string" "global.imagePullSecrets[0].name=${IMAGE_PULL_SECRET}")
+fi
+
+helm upgrade --install "${RELEASE_NAME}" "${CHART_DIR}" \
+  --namespace "${NAMESPACE}" \
+  --create-namespace \
+  "${HELM_SET_ARGS[@]}" \
+  --wait \
+  --timeout 10m

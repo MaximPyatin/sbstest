@@ -1,0 +1,25 @@
+apiVersion: v2
+name: sbs
+description: Unified Helm chart for the SBS platform stack.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: postgresql
+    version: 0.1.0
+    repository: "file://charts/postgresql"
+    condition: postgresql.enabled
+  - name: temporal
+    version: 0.1.0
+    repository: "file://charts/temporal"
+    condition: temporal.enabled
+  - name: redis
+    version: 0.1.0
+    repository: "file://charts/redis"
+    condition: redis.enabled
+  - name: nats
+    version: 0.1.0
+    repository: "file://charts/nats"
+    condition: nats.enabled
+

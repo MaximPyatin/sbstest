@@ -1,0 +1,46 @@
+---
+- name: Ensure Temporal data directory exists
+  ansible.builtin.file:
+    path: "{{ temporal_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Run Temporal server container
+  community.docker.docker_container:
+    name: "{{ temporal_container_name }}"
+    image: "{{ temporal_image }}"
+    restart_policy: always
+    env:
+      DB: postgresql
+      DB_PORT: "{{ temporal_db_port }}"
+      POSTGRES_SEEDS: "{{ temporal_db_host }}"
+      POSTGRES_USER: "{{ temporal_db_user }}"
+      POSTGRES_PWD: "{{ temporal_db_password }}"
+      SKIP_DB_CREATE: "false"
+      SKIP_DB_SETUP: "false"
+      SKIP_DEFAULT_NAMESPACE_CREATION: "false"
+      DEFAULT_NAMESPACE: "{{ temporal_namespace }}"
+    published_ports:
+      - "{{ temporal_frontend_port }}:7233"
+    volumes:
+      - "{{ temporal_data_path }}:/var/lib/temporal"
+    networks:
+      - name: sbs-network
+
+- name: Run Temporal UI container
+  when: temporal_ui_enabled | bool
+  community.docker.docker_container:
+    name: "{{ temporal_container_name }}-ui"
+    image: "{{ temporal_ui_image }}"
+    restart_policy: always
+    env:
+      TEMPORAL_ADDRESS: "{{ temporal_container_name }}:{{ temporal_frontend_port }}"
+      TEMPORAL_PERMIT_WRITE_API: "true"
+      TEMPORAL_CORS_ORIGINS: "*"
+    published_ports:
+      - "{{ temporal_ui_port }}:8080"
+    networks:
+      - name: sbs-network
+

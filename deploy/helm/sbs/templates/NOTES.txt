@@ -1,0 +1,8 @@
+Thank you for installing the SBS platform stack.
+
+To get the API endpoint run:
+
+  kubectl get svc {{ include "sbs.fullname" . }}-api -n {{ .Release.Namespace }}
+
+Temporal UI is exposed on service {{ include "temporal.fullname" . }} on port {{ .Values.temporal.service.ports.ui }}.
+

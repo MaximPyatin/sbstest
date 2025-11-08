@@ -1,0 +1,27 @@
+---
+- name: Ensure directory for Redis data exists
+  ansible.builtin.file:
+    path: "{{ redis_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Assemble Redis command line
+  ansible.builtin.set_fact:
+    redis_command: >-
+      redis-server --save "" --appendonly yes{% if redis_requirepass|length > 0 %} --requirepass {{ redis_requirepass }}{% endif %}
+
+- name: Run Redis container
+  community.docker.docker_container:
+    name: "{{ redis_container_name }}"
+    image: "{{ redis_image }}"
+    restart_policy: always
+    command: ["/bin/sh", "-c", "{{ redis_command }}"]
+    published_ports:
+      - "{{ redis_port }}:6379"
+    volumes:
+      - "{{ redis_data_path }}:/data"
+    networks:
+      - name: sbs-network
+

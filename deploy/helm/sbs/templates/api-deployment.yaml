@@ -1,0 +1,91 @@
+{{- if .Values.stack.api }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sbs.fullname" . }}-api
+  labels:
+    {{- include "sbs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.stack.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sbs.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "sbs.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      {{- with .Values.global.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: {{ include "sbs.image" .Values.stack.api.image }}
+          imagePullPolicy: {{ .Values.stack.api.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+            - name: DATABASE_HOST
+              value: {{ include "sbs.postgresql.host" . | quote }}
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sbs.postgresql.host" . }}-credentials
+                  key: password
+            - name: DATABASE_NAME
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: TEMPORAL_HOST
+              value: {{ include "sbs.temporal.host" . | quote }}
+            - name: TEMPORAL_PORT
+              value: "7233"
+            - name: TEMPORAL_NAMESPACE
+              value: {{ .Values.temporal.persistence.namespace | quote }}
+            - name: REDIS_URL
+              value: {{ printf "redis://%s:6379/0" (include "sbs.redis.host" .) | quote }}
+            - name: NATS_URL
+              value: {{ printf "nats://%s:%d" (include "sbs.nats.host" .) (int .Values.nats.clientPort) | quote }}
+          {{- if .Values.stack.api.extraEnv }}
+            {{- toYaml .Values.stack.api.extraEnv | nindent 12 }}
+          {{- end }}
+          {{- if .Values.stack.api.extraEnvFrom }}
+          envFrom:
+            {{- toYaml .Values.stack.api.extraEnvFrom | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.stack.api.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.stack.api.readinessProbe | nindent 12 }}
+          {{- with .Values.stack.api.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.stack.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.stack.api.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.stack.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+

@@ -1,0 +1,24 @@
+---
+sbs_api_image: "ghcr.io/example/sbs:latest"
+sbs_api_pull: true
+sbs_api_container_name: "sbs-api"
+sbs_api_port: 8000
+sbs_api_environment:
+  ENVIRONMENT: "ansible"
+  DATABASE_HOST: "sbs-postgresql"
+  DATABASE_PORT: "5432"
+  DATABASE_USER: "postgres"
+  DATABASE_PASSWORD: "secret"
+  DATABASE_NAME: "app_db"
+  TEMPORAL_HOST: "sbs-temporal"
+  TEMPORAL_PORT: "7233"
+  TEMPORAL_NAMESPACE: "default"
+  REDIS_URL: "redis://sbs-redis:6379/0"
+  NATS_URL: "nats://sbs-nats:4222"
+sbs_worker_enabled: true
+sbs_worker_container_name: "sbs-worker"
+sbs_worker_command:
+  - python
+  - run_worker.py
+sbs_worker_environment: "{{ sbs_api_environment }}"
+

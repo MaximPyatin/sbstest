@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "nats.fullname" . }}
+  labels:
+    {{- include "nats.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "nats.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nats.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nats.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: nats
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - nats-server
+          args:
+            - --jetstream
+            - --store_dir
+            - /var/lib/nats
+            - --http_port
+            - "{{ .Values.httpPort }}"
+          ports:
+            - name: client
+              containerPort: {{ .Values.clientPort }}
+            - name: monitoring
+              containerPort: {{ .Values.httpPort }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/nats
+          readinessProbe:
+            httpGet:
+              path: /varz
+              port: monitoring
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /varz
+              port: monitoring
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if not (and .Values.jetstream.enabled .Values.jetstream.storage.enabled) }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if and .Values.jetstream.enabled .Values.jetstream.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.jetstream.storage.className }}
+        storageClassName: {{ .Values.jetstream.storage.className }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.jetstream.storage.size }}
+  {{- end }}
+

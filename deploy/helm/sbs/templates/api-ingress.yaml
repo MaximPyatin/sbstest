@@ -1,0 +1,37 @@
+{{- if and .Values.stack.api ( .Values.stack.api.ingress.enabled ) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sbs.fullname" . }}-api
+  labels:
+    {{- include "sbs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  {{- with .Values.stack.api.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.stack.api.ingress.className }}
+  ingressClassName: {{ .Values.stack.api.ingress.className }}
+  {{- end }}
+  rules:
+    {{- range .Values.stack.api.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ printf "%s-api" (include "sbs.fullname" $) }}
+                port:
+                  number: {{ $.Values.stack.api.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.stack.api.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+

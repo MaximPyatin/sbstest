@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nats.fullname" . }}
+  labels:
+    {{- include "nats.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "nats.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: client
+      port: {{ .Values.clientPort }}
+      targetPort: client
+      protocol: TCP
+    - name: monitoring
+      port: {{ .Values.httpPort }}
+      targetPort: monitoring
+      protocol: TCP
+

@@ -1,0 +1,26 @@
+---
+- name: Ensure directory for PostgreSQL data exists
+  ansible.builtin.file:
+    path: "{{ postgresql_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Run PostgreSQL container
+  community.docker.docker_container:
+    name: "{{ postgresql_container_name }}"
+    image: "{{ postgresql_image }}"
+    restart_policy: always
+    env:
+      POSTGRES_DB: "{{ postgresql_db }}"
+      POSTGRES_USER: "{{ postgresql_user }}"
+      POSTGRES_PASSWORD: "{{ postgresql_password }}"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    published_ports:
+      - "{{ postgresql_port }}:5432"
+    volumes:
+      - "{{ postgresql_data_path }}:/var/lib/postgresql/data"
+    networks:
+      - name: sbs-network
+

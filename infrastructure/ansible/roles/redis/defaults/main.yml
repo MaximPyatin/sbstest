@@ -1,0 +1,7 @@
+---
+redis_image: "redis:7.4-alpine"
+redis_container_name: "sbs-redis"
+redis_port: 6379
+redis_data_path: "/var/lib/sbs/redis"
+redis_requirepass: ""
+

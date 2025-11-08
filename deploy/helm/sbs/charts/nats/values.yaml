@@ -1,0 +1,25 @@
+image:
+  repository: nats
+  tag: 2.10.11-alpine
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+clientPort: 4222
+httpPort: 8222
+jetstream:
+  enabled: true
+  storage:
+    enabled: true
+    size: 5Gi
+    className: ""
+
+service:
+  type: ClusterIP
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+

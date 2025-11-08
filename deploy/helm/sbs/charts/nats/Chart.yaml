@@ -1,0 +1,7 @@
+apiVersion: v2
+name: nats
+description: NATS JetStream subchart for SBS stack.
+type: application
+version: 0.1.0
+appVersion: "2.10.11"
+

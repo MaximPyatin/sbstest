@@ -79,9 +79,61 @@ Core API предоставляет каркас CP: эндпоинты `/health
 | Версия приложения | `Invoke-RestMethod http://localhost:8000/version` |
 | Согласованность настроек в БД | `Invoke-RestMethod http://localhost:8000/settings/core.version` |
 
+## Инфраструктурные сценарии
+
+### Helm
+
+Единый Helm-чарт `deploy/helm/sbs` разворачивает PostgreSQL, Temporal, Redis, NATS, API и worker.
+
+```bash
+helm dependency build deploy/helm/sbs
+helm upgrade --install sbs deploy/helm/sbs \
+  --namespace sbs --create-namespace \
+  --set stack.api.image.repository=ghcr.io/<org>/sbs \
+  --set stack.api.image.tag=latest \
+  --set stack.worker.image.repository=ghcr.io/<org>/sbs \
+  --set stack.worker.image.tag=latest
+```
+
+Значения можно переопределять через `values.yaml` либо флагами `--set/--values`. По умолчанию создаются StatefulSet с PVC для PostgreSQL, Temporal, Redis и NATS.
+
+### Terraform
+
+Модули находятся в `infrastructure/terraform/modules`, окружения — в `infrastructure/terraform/environments/*`.
+
+```bash
+cd infrastructure/terraform/environments/test
+cp terraform.tfvars.example terraform.tfvars  # заполните AMI и параметры
+terraform init
+terraform plan
+terraform apply
+```
+
+Доступные модули:
+
+- `network` — VPC, публичные/приватные подсети, NAT.
+- `kubernetes_cluster` — EKS-кластер и node group.
+- `virtual_machine` — универсальный модуль для ВМ (например, бастион).
+
+### Ansible
+
+Playbook `infrastructure/ansible/site.yml` конфигурирует bare-metal/VM окружение при помощи Docker-контейнеров.
+
+```bash
+cd infrastructure/ansible
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook site.yml -i inventories/hosts.ini
+```
+
+Основные роли:
+
+- `common`, `docker` — подготовка ОС и установка Docker.
+- `postgresql`, `temporal`, `redis`, `nats` — сервисы стека.
+- `sbs_api` — развёртывание API и worker из контейнерного образа.
+
 ## Структура
 
-- `docker-compose.yml` — контейнеры PostgreSQL, Temporal Server, Temporal admin-tools, Redis, NATS.
+- `docker-compose.yml` — локальный стек: PostgreSQL, Temporal Server, Temporal admin-tools, Redis, NATS, API и worker.
 - `alembic/`, `alembic.ini`, `entrypoint.py` — миграции и автоматический запуск.
 - `app/database.py` — SQLAlchemy engine/Session.
 - `app/models/` — SQLAlchemy-модели инфраструктуры (например, `SystemSetting`).
@@ -117,7 +169,8 @@ GitHub Actions workflow `.github/workflows/ci.yml` реализует этап E
 | `COSIGN_PASSWORD` | ✅ | Пароль к ключу Cosign. |
 | `KUBE_CONFIG_B64` | ✅ для деплоя | kubeconfig в Base64. Скрипт разворачивания декодирует его во временный файл. |
 | `KUBE_NAMESPACE` | ➖ | Тестовый namespace (по умолчанию `default`). |
+| `IMAGE_PULL_SECRET` | ➖ | Имя `imagePullSecret`, если образ приватный. |
 
-Для доступа к GHCR в кластере необходимо добавить secret `ghcr-credentials`, который использует Kubernetes deployment (`deploy/test/deployment.yaml`) как `imagePullSecrets`.
+Для доступа к GHCR в кластере необходимо создать secret `ghcr-credentials` (или задать свой) и передать его в Helm через `--set global.imagePullSecrets[0].name=ghcr-credentials`.
 
 Workflow запускается на `pull_request` и `push` в `main`. Публикация образов, подпись и деплой выполняются только для ветки `main`.

@@ -1,0 +1,14 @@
+---
+temporal_image: "temporalio/auto-setup:1.23.0"
+temporal_container_name: "sbs-temporal"
+temporal_frontend_port: 7233
+temporal_ui_enabled: true
+temporal_ui_image: "temporalio/ui:2.21.3"
+temporal_ui_port: 8088
+temporal_db_host: "sbs-postgresql"
+temporal_db_port: 5432
+temporal_db_user: "postgres"
+temporal_db_password: "secret"
+temporal_namespace: "default"
+temporal_data_path: "/var/lib/sbs/temporal"
+

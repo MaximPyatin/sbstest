@@ -1,0 +1,38 @@
+image:
+  repository: temporalio/auto-setup
+  tag: 1.23.0
+  pullPolicy: IfNotPresent
+
+ui:
+  enabled: true
+  image:
+    repository: temporalio/ui
+    tag: 2.21.3
+  containerPort: 8080
+
+service:
+  type: ClusterIP
+  ports:
+    frontend: 7233
+    ui: 8088
+
+database:
+  host: ""
+  port: 5432
+  user: postgres
+  password: secret
+
+persistence:
+  namespace: default
+
+storage:
+  enabled: true
+  size: 10Gi
+  className: ""
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+

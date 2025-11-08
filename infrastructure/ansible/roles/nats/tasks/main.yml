@@ -1,0 +1,29 @@
+---
+- name: Ensure directory for NATS data exists
+  ansible.builtin.file:
+    path: "{{ nats_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Run NATS container
+  community.docker.docker_container:
+    name: "{{ nats_container_name }}"
+    image: "{{ nats_image }}"
+    restart_policy: always
+    command:
+      - nats-server
+      - --jetstream
+      - --store_dir
+      - /var/lib/nats
+      - --http_port
+      - "{{ nats_http_port }}"
+    published_ports:
+      - "{{ nats_client_port }}:4222"
+      - "{{ nats_http_port }}:{{ nats_http_port }}"
+    volumes:
+      - "{{ nats_data_path }}:/var/lib/nats"
+    networks:
+      - name: sbs-network
+

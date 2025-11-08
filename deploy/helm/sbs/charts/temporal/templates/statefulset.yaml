@@ -1,0 +1,112 @@
+{{- $postgresHost := .Values.database.host | default (printf "%s-postgresql" .Release.Name) -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "temporal.fullname" . }}
+  labels:
+    {{- include "temporal.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "temporal.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "temporal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "temporal.selectorLabels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18
+          command:
+            - /bin/sh
+            - -c
+            - >
+              until pg_isready -h {{ $postgresHost }} -p {{ .Values.database.port }} -U {{ .Values.database.user }}; do echo "waiting for postgres"; sleep 3; done
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "temporal.fullname" . }}-db
+                  key: password
+      containers:
+        - name: temporal
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: DB
+              value: postgresql
+            - name: DB_PORT
+              value: "{{ .Values.database.port }}"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "temporal.fullname" . }}-db
+                  key: user
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "temporal.fullname" . }}-db
+                  key: password
+            - name: POSTGRES_SEEDS
+              value: {{ $postgresHost | quote }}
+            - name: SKIP_DB_CREATE
+              value: "false"
+            - name: SKIP_DB_SETUP
+              value: "false"
+            - name: SKIP_DEFAULT_NAMESPACE_CREATION
+              value: "false"
+            - name: DEFAULT_NAMESPACE
+              value: {{ .Values.persistence.namespace | quote }}
+          ports:
+            - name: frontend
+              containerPort: {{ .Values.service.ports.frontend }}
+          readinessProbe:
+            tcpSocket:
+              port: frontend
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: frontend
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/temporal
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if not .Values.storage.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.storage.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.storage.className }}
+        storageClassName: {{ .Values.storage.className }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
+  {{- end }}
+
