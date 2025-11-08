@@ -117,14 +117,25 @@ jobs:
       - name: Push image to GHCR
         run: docker push ${{ env.IMAGE_REF }}
 
+      - name: Check cosign secrets
+        id: cosign_check
+        shell: bash
+        run: |
+          if [[ -n "${{ secrets.COSIGN_PRIVATE_KEY }}" && -n "${{ secrets.COSIGN_PASSWORD }}" ]]; then
+            echo "COSIGN_AVAILABLE=true" >> "${GITHUB_ENV}"
+          else
+            echo "COSIGN_AVAILABLE=false" >> "${GITHUB_ENV}"
+            echo "::notice::Cosign secrets not detected, skipping signing step."
+          fi
+
       - name: Install cosign
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
+        if: ${{ env.COSIGN_AVAILABLE == 'true' }}
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: "v2.3.0"
 
       - name: Sign container image
-        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
+        if: ${{ env.COSIGN_AVAILABLE == 'true' }}
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
