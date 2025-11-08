@@ -26,7 +26,7 @@ cp deploy/test/* "${WORK_DIR}/"
 
 sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_REF}|g" "${WORK_DIR}/deployment.yaml"
 
-kubectl apply --validate=false -f "${WORK_DIR}/"
+kubectl apply --server-side --validate=false -f "${WORK_DIR}/"
 
 kubectl set image \
   deployment/sbs-api \
