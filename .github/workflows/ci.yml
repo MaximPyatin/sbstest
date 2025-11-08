@@ -129,7 +129,7 @@ jobs:
           path: |
             *.sig
             *.att
-        if-no-files-found: ignore
+          if-no-files-found: ignore
 
   deploy-test:
     runs-on: ubuntu-latest
