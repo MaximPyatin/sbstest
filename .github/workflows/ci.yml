@@ -11,7 +11,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-test-scan:
+  build-scan:
     runs-on: ubuntu-latest
     outputs:
       image_ref: ${{ steps.image_ref.outputs.image_ref }}
@@ -133,7 +133,7 @@ jobs:
 
   deploy-test:
     runs-on: ubuntu-latest
-    needs: build-test-scan
+    needs: build-scan
     if: github.event_name != 'pull_request'
     environment:
       name: test
@@ -146,7 +146,7 @@ jobs:
 
       - name: Prepare image reference
         run: |
-          IMAGE_REF="${{ needs.build-test-scan.outputs.image_ref }}"
+          IMAGE_REF="${{ needs.build-scan.outputs.image_ref }}"
           if [ -z "${IMAGE_REF}" ]; then
             IMAGE_REF="${REGISTRY}/${GITHUB_REPOSITORY,,}:latest"
           fi

@@ -15,7 +15,7 @@
       timeout: 5s
       retries: 5
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
 
   temporal:
     image: temporalio/auto-setup:1.23.0
