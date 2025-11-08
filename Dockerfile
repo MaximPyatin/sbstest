@@ -26,7 +26,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN useradd --create-home --shell /usr/sbin/nologin appuser
 
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/* \
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir /wheels/* \
     && rm -rf /wheels
 
 COPY . .
