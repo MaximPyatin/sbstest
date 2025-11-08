@@ -7,3 +7,4 @@ uvicorn[standard]==0.23.2
 pydantic==1.10.15
 redis==5.0.1
 nats-py==2.7.2
+pytest==8.4.2
