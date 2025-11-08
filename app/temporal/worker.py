@@ -8,6 +8,7 @@ from app.activities.test_activity import test_activity
 
 
 async def run_worker():
+    """Запускает Temporal worker с тестовым workflow и activity."""
     print(f"Ожидание подключения к Temporal на {TEMPORAL_ADDRESS}...")
     await wait_for_temporal()
     print(f"Подключение к Temporal установлено, namespace: {TEMPORAL_NAMESPACE}")

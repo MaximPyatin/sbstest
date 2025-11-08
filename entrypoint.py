@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def build_config() -> Config:
+    """Готовит конфигурацию Alembic с актуальным URL базы данных."""
     config = Config(str(BASE_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BASE_DIR / "alembic"))
     config.set_main_option("sqlalchemy.url", DATABASE_URL)
@@ -20,6 +21,7 @@ def build_config() -> Config:
 
 
 def wait_for_database(attempts: int = 10, delay: float = 3.0) -> None:
+    """Ожидает доступности базы данных, выполняя повторные попытки подключения."""
     for attempt in range(1, attempts + 1):
         try:
             with engine.connect() as connection:
@@ -32,11 +34,13 @@ def wait_for_database(attempts: int = 10, delay: float = 3.0) -> None:
 
 
 def apply_migrations() -> None:
+    """Применяет все доступные миграции Alembic до актуальной версии."""
     config = build_config()
     command.upgrade(config, "head")
 
 
 def main() -> None:
+    """Запускает последовательность: ожидание БД и применение миграций."""
     try:
         wait_for_database()
         apply_migrations()

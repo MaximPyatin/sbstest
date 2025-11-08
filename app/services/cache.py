@@ -9,6 +9,7 @@ _redis: Optional[Redis] = None
 
 
 async def connect_redis() -> Redis:
+    """Создаёт подключение к Redis с ленивой инициализацией и проверкой ping."""
     global _redis
     if _redis is None:
         _redis = Redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
@@ -16,23 +17,31 @@ async def connect_redis() -> Redis:
     return _redis
 
 
+async def get_redis() -> Redis:
+    """Возвращает активное подключение Redis и проверяет ping."""
+    client = await connect_redis()
+    pong = await client.ping()
+    if pong not in ("PONG", True):
+        raise RuntimeError(f"Unexpected Redis PING response: {pong}")
+    return client
+
+
 async def close_redis() -> None:
+    """Закрывает соединение с Redis и сбрасывает кэшированный клиент."""
     global _redis
     if _redis is not None:
         await _redis.close()
         _redis = None
 
 
-def get_redis() -> Redis:
-    if _redis is None:
-        raise RuntimeError("Redis is not connected")
-    return _redis
-
-
 async def set_value(key: str, value: str) -> None:
-    await get_redis().set(key, value)
+    """Сохраняет строковое значение по ключу в Redis."""
+    client = await get_redis()
+    await client.set(key, value)
 
 
 async def get_value(key: str) -> Optional[str]:
-    return await get_redis().get(key)
+    """Читает строковое значение из Redis по ключу."""
+    client = await get_redis()
+    return await client.get(key)
 

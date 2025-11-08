@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sbs-api
+  labels:
+    app: sbs-api
+    environment: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sbs-api
+  template:
+    metadata:
+      labels:
+        app: sbs-api
+        environment: test
+    spec:
+      containers:
+        - name: sbs-api
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENVIRONMENT
+              value: test
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      imagePullSecrets:
+        - name: ghcr-credentials
+
