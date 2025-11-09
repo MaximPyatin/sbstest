@@ -23,3 +23,4 @@ output "bastion_public_ip" {
   value       = try(module.bastion[0].public_ip, null)
 }
 
+

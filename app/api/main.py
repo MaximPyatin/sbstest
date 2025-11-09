@@ -19,6 +19,7 @@ from temporalio import exceptions as temporal_exceptions
 from app import __version__ as APP_VERSION
 from app.database import SessionLocal, get_db
 from app.models import SystemSetting
+from app.telemetry import configure_telemetry, record_http_request_metrics
 from app.temporal.client import (
     close_temporal_client,
     get_temporal_client,
@@ -45,6 +46,8 @@ logging.basicConfig(
 logger = logging.getLogger("sbs.api")
 
 app = FastAPI(title="SBS Core API", version=APP_VERSION)
+
+configure_telemetry(app)
 
 
 class TestWorkflowRequest(BaseModel):
@@ -150,10 +153,13 @@ async def request_logging_middleware(request: Request, call_next):
         request.url.path,
     )
 
+    duration_seconds: float
+
     try:
         response = await call_next(request)
     except Exception:
         duration_ms = (time.perf_counter() - start_time) * 1000
+        duration_seconds = duration_ms / 1000
         logger.exception(
             "request_id=%s method=%s path=%s status=error duration_ms=%.2f",
             request_id,
@@ -161,9 +167,11 @@ async def request_logging_middleware(request: Request, call_next):
             request.url.path,
             duration_ms,
         )
+        record_http_request_metrics(request, 500, duration_seconds)
         raise
 
     duration_ms = (time.perf_counter() - start_time) * 1000
+    duration_seconds = duration_ms / 1000
     logger.info(
         "request_id=%s method=%s path=%s status=%s duration_ms=%.2f",
         request_id,
@@ -172,6 +180,7 @@ async def request_logging_middleware(request: Request, call_next):
         response.status_code,
         duration_ms,
     )
+    record_http_request_metrics(request, response.status_code, duration_seconds)
     response.headers["X-Request-ID"] = request_id
     return response
 

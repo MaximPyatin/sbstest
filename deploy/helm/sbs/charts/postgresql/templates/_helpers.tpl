@@ -23,3 +23,4 @@ app.kubernetes.io/name: {{ include "postgresql.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+

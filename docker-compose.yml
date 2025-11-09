@@ -117,7 +117,7 @@
       dockerfile: Dockerfile
     container_name: sbs-worker
     restart: always
-    command: ["python", "run_worker.py"]
+    command: ["/app/scripts/start_worker.sh"]
     depends_on:
       db:
         condition: service_healthy
@@ -140,8 +140,45 @@
       NATS_URL: nats://nats:4222
       ENVIRONMENT: local
 
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+
 volumes:
   postgres_data:
   temporal_data:
   redis_data:
   nats_data:
+  prometheus_data:
+  grafana_data:

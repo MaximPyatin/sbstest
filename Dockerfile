@@ -24,6 +24,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bash \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /wheels /wheels
 RUN pip install --upgrade pip \
@@ -32,9 +35,11 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
+RUN chmod +x scripts/start_api.sh scripts/start_worker.sh
+
 USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/scripts/start_api.sh"]
 

@@ -1,0 +1,209 @@
+{
+  "title": "Инфраструктура SBS",
+  "uid": "sbs-infra",
+  "schemaVersion": 38,
+  "version": 1,
+  "style": "dark",
+  "timezone": "browser",
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Загрузка CPU",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROMETHEUS_DS"
+      },
+      "description": "Средняя загрузка CPU контейнера API",
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"sbs-api\"}[1m])",
+          "legendFormat": "API"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 4
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Использование памяти (RSS)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROMETHEUS_DS"
+      },
+      "description": "Фактическое потребление оперативной памяти процессом API",
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"sbs-api\"}",
+          "legendFormat": "API"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "continuous-Greens"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP запросы в секунду",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROMETHEUS_DS"
+      },
+      "description": "Интенсивность входящих HTTP запросов ко всем эндпоинтам API",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_total{job=\"sbs-api\"}[1m]))",
+          "legendFormat": "Все запросы"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Ошибки 5xx",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PROMETHEUS_DS"
+      },
+      "description": "Количество серверных HTTP ошибок (5xx) в минуту",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_total{job=\"sbs-api\",http_status_code=~\"5..\"}[5m]))",
+          "legendFormat": "5xx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": {
+            "mode": "continuous-RdYlGn",
+            "invert": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.05
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  }
+}
+

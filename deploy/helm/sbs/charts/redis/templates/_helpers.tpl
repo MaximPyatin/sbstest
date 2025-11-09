@@ -23,3 +23,4 @@ app.kubernetes.io/name: {{ include "redis.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+

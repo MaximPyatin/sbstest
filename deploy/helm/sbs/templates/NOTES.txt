@@ -6,3 +6,4 @@ To get the API endpoint run:
 
 Temporal UI is exposed on service {{ include "temporal.fullname" . }} on port {{ .Values.temporal.service.ports.ui }}.
 
+

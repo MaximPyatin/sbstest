@@ -23,3 +23,4 @@ app.kubernetes.io/name: {{ include "nats.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+

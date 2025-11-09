@@ -115,8 +115,7 @@ stack:
       tag: latest
       pullPolicy: IfNotPresent
     command:
-      - python
-      - run_worker.py
+      - /app/scripts/start_worker.sh
     resources: {}
     nodeSelector: {}
     tolerations: []

@@ -12,3 +12,4 @@ bastion_ami_id = "ami-xxxxxxxx"
 #   "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 # ]
 
+

@@ -9,3 +9,7 @@ uvicorn[standard]==0.34.0
 redis==5.0.1
 nats-py==2.7.2
 pytest==8.4.2
+opentelemetry-distro==0.46b0
+opentelemetry-exporter-prometheus==0.46b0
+opentelemetry-instrumentation-fastapi==0.46b0
+prometheus-client==0.20.0

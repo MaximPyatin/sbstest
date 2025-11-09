@@ -16,7 +16,7 @@ Core API предоставляет каркас CP: эндпоинты `/health
    pip install -r requirements.txt
    ```
 
-2. **Поднимите контейнеры (PostgreSQL, Temporal, Redis, NATS)**:
+2. **Поднимите контейнеры (PostgreSQL, Temporal, Redis, NATS, Prometheus, Grafana)**:
    ```powershell
    docker-compose up -d
    ```
@@ -30,10 +30,10 @@ Core API предоставляет каркас CP: эндпоинты `/health
 4. **Запустите worker и API** (разные терминалы):
    ```powershell
    python run_worker.py
-   python run_api.py
+   opentelemetry-instrument uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
-5. **Проверьте сервисы**:
+5. **Проверьте сервисы и телеметрию**:
    ```powershell
 
    # Health-check и инициализация DI (Temporal, NATS, Redis)
@@ -62,7 +62,12 @@ Core API предоставляет каркас CP: эндпоинты `/health
 
   # Infrastructure setting stored в PostgreSQL
   Invoke-RestMethod -Uri http://localhost:8000/settings/core.version
+
+  # Метрики Prometheus
+  Invoke-RestMethod -Uri http://localhost:8000/metrics
    ```
+
+6. **Откройте Grafana**: http://localhost:3000 (логин/пароль `admin`/`admin`). Дашборд `SBS Infrastructure` показывает CPU, память, RPS и 5xx.
 
 ## Проверка DoD
 
@@ -78,6 +83,15 @@ Core API предоставляет каркас CP: эндпоинты `/health
 | Core API health | `Invoke-RestMethod http://localhost:8000/health` |
 | Версия приложения | `Invoke-RestMethod http://localhost:8000/version` |
 | Согласованность настроек в БД | `Invoke-RestMethod http://localhost:8000/settings/core.version` |
+| Метрики Prometheus | `Invoke-RestMethod http://localhost:8000/metrics` |
+| Grafana дашборд | `open http://localhost:3000/d/sbs-infra` |
+
+## Мониторинг и телеметрия
+
+- OpenTelemetry автоинструментация (`opentelemetry-instrument uvicorn`) включена в стартовый скрипт контейнера API.
+- Экспорт метрик в формате Prometheus доступен по `/metrics`, включает `http_server_requests_total`, `process_cpu_seconds_total`, `process_resident_memory_bytes`.
+- Prometheus (docker-compose) скрейпит API каждые 15 секунд согласно `monitoring/prometheus/prometheus.yml`.
+- Grafana автоматически настраивает источник Prometheus и дашборд `SBS Infrastructure` с графиками CPU, памяти, RPS и ошибок 5xx.
 
 ## Инфраструктурные сценарии
 

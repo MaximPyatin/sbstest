@@ -23,3 +23,4 @@ app.kubernetes.io/name: {{ include "temporal.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+
