@@ -62,3 +62,5 @@ tz_content.txt
 # Alembic
 # Keep alembic.ini and alembic/ directory
 
+cosign.key
+cosign.pub
