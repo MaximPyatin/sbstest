@@ -1,3 +1,5 @@
+"""Запуск API через uvicorn и наше приложение."""
+
 import uvicorn
 from app.api.main import app
 

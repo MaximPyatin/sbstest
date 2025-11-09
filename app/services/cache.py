@@ -9,7 +9,7 @@ _redis: Optional[Redis] = None
 
 
 async def connect_redis() -> Redis:
-    """Создаёт подключение к Redis с ленивой инициализацией и проверкой ping."""
+    """Лениво открываем соединение с Redis и сразу проверяем, что он отвечает."""
     global _redis
     if _redis is None:
         _redis = Redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
@@ -18,7 +18,7 @@ async def connect_redis() -> Redis:
 
 
 async def get_redis() -> Redis:
-    """Возвращает активное подключение Redis и проверяет ping."""
+    """Достаём готовый Redis-клиент и убеждаемся, что пинг проходит без сюрпризов."""
     client = await connect_redis()
     pong = await client.ping()
     if pong not in ("PONG", True):
@@ -27,7 +27,7 @@ async def get_redis() -> Redis:
 
 
 async def close_redis() -> None:
-    """Закрывает соединение с Redis и сбрасывает кэшированный клиент."""
+    """Аккуратно закрываем соединение и очищаем кэш, чтобы не держать лишние коннекты."""
     global _redis
     if _redis is not None:
         await _redis.close()
@@ -35,13 +35,13 @@ async def close_redis() -> None:
 
 
 async def set_value(key: str, value: str) -> None:
-    """Сохраняет строковое значение по ключу в Redis."""
+    """Кладём строку в Redis по заданному ключу, как в маленький временный блокнот."""
     client = await get_redis()
     await client.set(key, value)
 
 
 async def get_value(key: str) -> Optional[str]:
-    """Читает строковое значение из Redis по ключу."""
+    """Читаем обратно, что лежит в Redis, если ключ ещё не протух."""
     client = await get_redis()
     return await client.get(key)
 

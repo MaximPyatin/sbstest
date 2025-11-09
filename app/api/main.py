@@ -94,7 +94,7 @@ class SystemSettingPayload(BaseModel):
     description: str | None = None
 
 def _resolve_build() -> str:
-    """Определяет идентификатор сборки из переменной окружения"""
+    """Пытаемся честно узнать номер сборки: сначала смотрим переменную, потом git."""
     env_build = os.getenv("APP_BUILD")
     if env_build:
         return env_build
@@ -109,7 +109,7 @@ def _resolve_build() -> str:
 
 
 def _ensure_core_version_setting() -> None:
-    """Создаёт или обновляет инфраструктурную настройку с версией приложения."""
+    """Гарантируем, что в базе лежит актуальная версия ядра — пригодится для проверок здоровья."""
     with SessionLocal() as session:
         result = session.execute(
             select(SystemSetting).where(SystemSetting.key == "core.version")
@@ -132,7 +132,7 @@ def _ensure_core_version_setting() -> None:
 
 @lru_cache(maxsize=1)
 def get_build_metadata() -> dict[str, Any]:
-    """Возвращает версию приложения и идентификатор сборки."""
+    """Кешируем версию и build, чтобы не гонять git команду на каждый запрос."""
     return {
         "version": APP_VERSION,
         "build": _resolve_build(),
@@ -141,7 +141,7 @@ def get_build_metadata() -> dict[str, Any]:
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
-    """Логирует каждый HTTP-запрос с request_id и временем обработки."""
+    """Логируем каждый запрос по-человечески: с request_id, статусом и временем выполнения."""
     request_id = request.headers.get("X-Request-ID", str(uuid4()))
     request.state.request_id = request_id
     start_time = time.perf_counter()
@@ -187,7 +187,7 @@ async def request_logging_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    """Поднимает ключевые внешние сервисы и проверяет готовность при старте API."""
+    """На старте убеждаемся, что Temporal, NATS, Redis и версия в БД готовы к работе."""
     await wait_for_temporal()
     await get_nats()
     await get_redis()
@@ -196,7 +196,7 @@ async def startup_event() -> None:
 
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
-    """Аккуратно закрывает соединения с внешними сервисами при остановке API."""
+    """При выключении сервиса аккуратно закрываем все подключения, чтобы ничего не висело."""
     await close_nats()
     await close_redis()
     await close_temporal_client()
@@ -204,7 +204,7 @@ async def shutdown_event() -> None:
 
 @app.get("/")
 async def root():
-    """Возвращает краткую информацию о сервисе и текущей сборке."""
+    """Отвечаем, что сервис жив, и делимся номером версии со сборкой."""
     metadata = get_build_metadata()
     return {"message": "SBS Core API", **metadata}
 
@@ -216,14 +216,14 @@ async def health(
     ___: Any = Depends(get_redis),
     db: Session = Depends(get_db),
 ):
-    """Подтверждает, что API и зависимости доступны."""
+    """Пинг-понг для операторов: проверяем Temporal, NATS, Redis и делаем SELECT 1."""
     db.execute(text("SELECT 1"))
     return {"status": "healthy"}
 
 
 @app.get("/version")
 async def version():
-    """Сообщает версию приложения и идентификатор сборки."""
+    """Возвращаем компактный JSON с версией и build, чтобы проверяющие не лезли в git."""
     return get_build_metadata()
 
 
@@ -232,7 +232,7 @@ async def start_test_workflow(
     request: TestWorkflowRequest,
     client=Depends(get_temporal_client),
 ):
-    """Запускает тестовый Temporal workflow и возвращает его идентификаторы."""
+    """Стартуем учебный workflow в Temporal и отдаём id, чтобы легко проверить связность."""
     try:
         handle = await client.start_workflow(
             TestWorkflow.run,
@@ -254,7 +254,7 @@ async def start_test_workflow(
 
 @app.post("/nats/test", response_model=NATSResponse)
 async def nats_test(payload: NATSRequest, _: Any = Depends(get_nats)):
-    """Отправляет и принимает тестовое сообщение через NATS."""
+    """Публикуем сообщение в NATS, ждём отклика и возвращаем, что реально получили."""
     subject = payload.subject or NATS_SUBJECT
     try:
         clear_pending_messages()
@@ -270,7 +270,7 @@ async def nats_test(payload: NATSRequest, _: Any = Depends(get_nats)):
 
 @app.post("/redis/test", response_model=RedisResponse)
 async def redis_test(payload: RedisRequest, _: Any = Depends(get_redis)):
-    """Пишет и читает тестовое значение в Redis."""
+    """Сохраняем пару ключ-значение в Redis и тут же читаем обратно для проверки."""
     await set_value(payload.key, payload.value)
     stored = await get_value(payload.key)
     return RedisResponse(key=payload.key, value=stored or "")
@@ -278,7 +278,7 @@ async def redis_test(payload: RedisRequest, _: Any = Depends(get_redis)):
 
 @app.get("/settings/{key}", response_model=SystemSettingResponse)
 async def get_setting(key: str, db: Session = Depends(get_db)):
-    """Возвращает инфраструктурную настройку по ключу."""
+    """Достаём запись настройки по ключу; если её нет — честно говорим 404."""
     setting = (
         db.execute(select(SystemSetting).where(SystemSetting.key == key))
         .scalars()
@@ -295,7 +295,7 @@ async def upsert_setting(
     payload: SystemSettingPayload,
     db: Session = Depends(get_db),
 ):
-    """Создаёт или обновляет инфраструктурную настройку платформы."""
+    """Создаём или обновляем инфраструктурную настройку; пригодится DevOps-скриптам."""
     statement = select(SystemSetting).where(SystemSetting.key == key)
     setting = db.execute(statement).scalars().first()
 

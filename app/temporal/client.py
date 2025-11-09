@@ -15,7 +15,7 @@ _client: Optional[Client] = None
 
 
 async def wait_for_temporal(attempts: int = 30, delay: float = 2.0) -> None:
-    """Ждёт доступности Temporal, делая несколько попыток подключения к серверу."""
+    """Дружелюбно стучимся к Temporal, пока он не ответит, делая паузы между подходами."""
     for attempt in range(1, attempts + 1):
         try:
             await get_temporal_client()
@@ -29,7 +29,7 @@ async def wait_for_temporal(attempts: int = 30, delay: float = 2.0) -> None:
 
 
 async def get_temporal_client() -> Client:
-    """Возвращает подключённый Temporal Client, создавая его при первом обращении."""
+    """Отдаём готовый Temporal-клиент, создавая подключение только один раз."""
     global _client
     if _client is None:
         _client = await Client.connect(
@@ -40,7 +40,7 @@ async def get_temporal_client() -> Client:
 
 
 async def close_temporal_client() -> None:
-    """Сбрасывает кэшированный Temporal Client, чтобы при следующем запросе создать новый."""
+    """Забываем кэшированный клиент, чтобы следующий запрос открыл свежий канал связи."""
     global _client
     _client = None
 

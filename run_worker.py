@@ -1,3 +1,5 @@
+"""Простой запуск Temporal worker без магии — используем в Docker и локально."""
+
 import asyncio
 from app.temporal.worker import run_worker
 

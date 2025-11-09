@@ -1,4 +1,6 @@
-﻿import sys
+﻿"""Утилита для контейнера: ждём базу, накатываем миграции и выходим с понятным статусом."""
+
+import sys
 import time
 from pathlib import Path
 
@@ -13,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def build_config() -> Config:
-    """Готовит конфигурацию Alembic с актуальным URL базы данных."""
+    """Собирает живую конфигурацию Alembic с тем URL БД, что мы используем сейчас."""
     config = Config(str(BASE_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BASE_DIR / "alembic"))
     config.set_main_option("sqlalchemy.url", DATABASE_URL)
@@ -21,7 +23,7 @@ def build_config() -> Config:
 
 
 def wait_for_database(attempts: int = 10, delay: float = 3.0) -> None:
-    """Ожидает доступности базы данных, выполняя повторные попытки подключения."""
+    """Спокойно дожидаемся, когда БД проснётся: повторяем SELECT 1 с паузами."""
     for attempt in range(1, attempts + 1):
         try:
             with engine.connect() as connection:
@@ -34,13 +36,13 @@ def wait_for_database(attempts: int = 10, delay: float = 3.0) -> None:
 
 
 def apply_migrations() -> None:
-    """Применяет все доступные миграции Alembic до актуальной версии."""
+    """Прогоняем все миграции до последней версии, будто запускаем app в проде."""
     config = build_config()
     command.upgrade(config, "head")
 
 
 def main() -> None:
-    """Запускает последовательность: ожидание БД и применение миграций."""
+    """Выполняем финальный чек-лист перед стартом контейнера: ждём БД и накатываем миграции."""
     try:
         wait_for_database()
         apply_migrations()

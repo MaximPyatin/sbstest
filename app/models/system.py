@@ -9,7 +9,7 @@ from app.database import Base
 
 
 class SystemSetting(Base):
-    """Настройки и метаданные платформы"""
+    """Таблица для наших инфраструктурных настроек: ключ, значение и немного метаданных."""
 
     __tablename__ = "system_settings"
 

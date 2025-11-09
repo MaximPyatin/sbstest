@@ -6,9 +6,10 @@ from temporalio.common import RetryPolicy
 
 @workflow.defn(name="TestWorkflow")
 class TestWorkflow:
+    """Небольшой учебный workflow: принимает имя, дергает activity и возвращает приветствие."""
     @workflow.run
     async def run(self, name: str) -> str:
-        """Запускает тестовый workflow, вызывающий activity и возвращающий её результат."""
+        """Берём имя, зовём activity, ждём пару секунд и возвращаем дружелюбный отклик."""
         workflow.logger.info(f"Запуск workflow для {name}")
         
         from app.activities.test_activity import sample_activity

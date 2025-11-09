@@ -33,7 +33,7 @@ def _build_meter_provider(service_name: str) -> tuple[MeterProvider, PrometheusM
 
 
 def configure_telemetry(app: FastAPI, service_name: Optional[str] = None) -> None:
-    """Configure OpenTelemetry metrics and expose Prometheus endpoint."""
+    """Включаем метрики через OpenTelemetry и отдаём их в Prometheus."""
     resolved_service_name = service_name or os.getenv("OTEL_SERVICE_NAME", "sbs-api")
 
     provider, prometheus_reader = _build_meter_provider(resolved_service_name)
@@ -70,7 +70,7 @@ def record_http_request_metrics(
     status_code: int,
     duration_seconds: float,
 ) -> None:
-    """Record metrics for a handled HTTP request."""
+    """Записываем один HTTP-запрос в метрики: метод, статус и сколько заняло времени."""
     telemetry_state = getattr(request.app.state, "telemetry", None)
     if telemetry_state is None:
         return
