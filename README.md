@@ -1,190 +1,156 @@
+## SBS Platform — инфраструктурный каркас
 
-## Платформа и CI/CD 
+Фреймворк для запуска ядра SBS: база данных, очереди, каркас API, мониторинг и CI/CD. Цель — чтобы команда могла поднять готовую среду декомандами и сразу приступить к разработке сервисов верхнего уровня.
 
-E0.1–E0.3: PostgreSQL, Temporal, Redis, NATS  
-E0.4: FastAPI Core API, логирование, DI
-
-Набор сервисов для старта платформы: PostgreSQL 18 с Alembic, Temporal Server + worker, Redis и NATS, а также FastAPI для проверки интеграций.  
-Core API предоставляет каркас CP: эндпоинты `/health`, `/version`, middleware с `request_id`, и DI-обёртки для Temporal, NATS, Redis.
+---
 
 ## Быстрый старт
+Локальная среда разворачивается одной командой: стэк контейнеров поднимет БД, брокеры, API, worker и наблюдаемость.
 
-1. **Создайте виртуальное окружение и установите зависимости**:
-   ```powershell
-   py -m venv venv
-   .\venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   ```
-
-2. **Поднимите контейнеры (PostgreSQL, Temporal, Redis, NATS, Prometheus, Grafana)**:
-   ```powershell
-   docker-compose up -d
-   ```
-
-3. **Примените миграции**:
-   ```powershell
-   alembic upgrade head   # вручную
-   python entrypoint.py   # автоматически + SELECT 1
-   ```
-
-4. **Запустите worker и API** (разные терминалы):
-   ```powershell
-   python run_worker.py
-   opentelemetry-instrument uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-5. **Проверьте сервисы и телеметрию**:
-   ```powershell
-
-   # Health-check и инициализация DI (Temporal, NATS, Redis)
-   Invoke-RestMethod -Uri http://localhost:8000/health
-
-   # Версия и build из git или переменной окружения APP_BUILD
-   Invoke-RestMethod -Uri http://localhost:8000/version
-
-   # Workflow + Temporal (возвращает run_id / workflow_id)
-   Invoke-RestMethod -Uri http://localhost:8000/test-workflow `
-     -Method Post `
-     -Headers @{ "Content-Type" = "application/json" } `
-     -Body '{"name": "TestUser"}'
-
-  # NATS (publish + subscribe за 1 секунду)
-   Invoke-RestMethod -Uri http://localhost:8000/nats/test `
-     -Method Post `
-     -Headers @{ "Content-Type" = "application/json" } `
-     -Body '{"message": "data"}'
-
-  # Redis (set/get)
-   Invoke-RestMethod -Uri http://localhost:8000/redis/test `
-     -Method Post `
-     -Headers @{ "Content-Type" = "application/json" } `
-     -Body '{"key": "test", "value": "val"}'
-
-  # Infrastructure setting stored в PostgreSQL
-  Invoke-RestMethod -Uri http://localhost:8000/settings/core.version
-
-  # Метрики Prometheus
-  Invoke-RestMethod -Uri http://localhost:8000/metrics
-   ```
-
-6. **Откройте Grafana**: http://localhost:3000 (логин/пароль `admin`/`admin`). Дашборд `SBS Infrastructure` показывает CPU, память, RPS и 5xx.
-
-## Проверка DoD
-
-| Что проверить | Команда |
-| --- | --- |
-| PostgreSQL 18 запущен | `docker exec postgres-18 psql -U postgres -d app_db -c "SELECT version();"` |
-| Alembic создаёт `alembic_version` | `alembic upgrade head` |
-| Авто-миграции и `SELECT 1` | `python entrypoint.py` |
-| Workflow получает `run_id` | `Invoke-RestMethod ... /test-workflow` |
-| Workflow завершён в Temporal | `docker exec temporal-admin-tools tctl --namespace default workflow list` |
-| NATS CLI | `docker exec nats nats pub test hello` + `docker exec nats nats sub test` |
-| Redis CLI и персистентность | `docker exec redis redis-cli set key val` + `docker exec redis redis-cli get key` |
-| Core API health | `Invoke-RestMethod http://localhost:8000/health` |
-| Версия приложения | `Invoke-RestMethod http://localhost:8000/version` |
-| Согласованность настроек в БД | `Invoke-RestMethod http://localhost:8000/settings/core.version` |
-| Метрики Prometheus | `Invoke-RestMethod http://localhost:8000/metrics` |
-| Grafana дашборд | `open http://localhost:3000/d/sbs-infra` |
-
-## Мониторинг и телеметрия
-
-- OpenTelemetry автоинструментация (`opentelemetry-instrument uvicorn`) включена в стартовый скрипт контейнера API.
-- Экспорт метрик в формате Prometheus доступен по `/metrics`, включает `http_server_requests_total`, `process_cpu_seconds_total`, `process_resident_memory_bytes`.
-- Prometheus (docker-compose) скрейпит API каждые 15 секунд согласно `monitoring/prometheus/prometheus.yml`.
-- Grafana автоматически настраивает источник Prometheus и дашборд `SBS Infrastructure` с графиками CPU, памяти, RPS и ошибок 5xx.
-
-## Инфраструктурные сценарии
-
-### Helm
-
-Единый Helm-чарт `deploy/helm/sbs` разворачивает PostgreSQL, Temporal, Redis, NATS, API и worker.
-
-```bash
-helm dependency build deploy/helm/sbs
-helm upgrade --install sbs deploy/helm/sbs \
-  --namespace sbs --create-namespace \
-  --set stack.api.image.repository=ghcr.io/<org>/sbs \
-  --set stack.api.image.tag=latest \
-  --set stack.worker.image.repository=ghcr.io/<org>/sbs \
-  --set stack.worker.image.tag=latest
+```powershell
+docker-compose up -d
 ```
 
-Значения можно переопределять через `values.yaml` либо флагами `--set/--values`. По умолчанию создаются StatefulSet с PVC для PostgreSQL, Temporal, Redis и NATS.
+После этого:
+- PostgreSQL и Alembic миграции применяются автоматически (`entrypoint.py` в контейнере API ждёт базу и запускает `alembic upgrade head`).
+- Temporal Server и тестовый worker регистрируются и готовы принимать workflow.
+- Redis и NATS подключаются через ленивые клиенты, API проверяет их на старте.
+- OpenTelemetry, Prometheus и Grafana включаются по умолчанию; метрики доступны на `http://localhost:8000/metrics`, дашборд – `http://localhost:3000` (`admin`/`admin`).
 
-### Terraform
-
-Модули находятся в `infrastructure/terraform/modules`, окружения — в `infrastructure/terraform/environments/*`.
-
-```bash
-cd infrastructure/terraform/environments/test
-cp terraform.tfvars.example terraform.tfvars  # заполните AMI и параметры
-terraform init
-terraform plan
-terraform apply
+### Проверочные вызовы
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+Invoke-RestMethod http://localhost:8000/version
+Invoke-RestMethod http://localhost:8000/test-workflow -Method Post -Body '{"name":"Demo"}'
+Invoke-RestMethod http://localhost:8000/nats/test -Method Post -Body '{"message":"ping"}'
+Invoke-RestMethod http://localhost:8000/redis/test -Method Post -Body '{"key":"demo","value":"ok"}'
 ```
 
-Доступные модули:
+---
 
-- `network` — VPC, публичные/приватные подсети, NAT.
-- `kubernetes_cluster` — EKS-кластер и node group.
-- `virtual_machine` — универсальный модуль для ВМ (например, бастион).
+## Как всё устроено
 
-### Ansible
+### Сервисы и процессы
+- **PostgreSQL 18** — основная БД платформы. Алебик инициализирует таблицу `system_settings`.
+- **Temporal Server + Admin Tools** — оркестрация workflow. Worker использует очередь `test-task-queue`.
+- **Redis 7** — кеш/координация. Клиент `app/services/cache.py` держит одну асинхронную сессию.
+- **NATS 2.10** — шина событий. `app/services/nats_client.py` подписывает тестовый subject и даёт publish/flush.
+- **SBS API** — приложение FastAPI:
+  - `/health` проверяет Temporal, NATS, Redis и делает `SELECT 1`.
+  - `/version` отдаёт версию и билд (из `APP_BUILD` или Git).
+  - `/settings/<key>` управляет таблицей `system_settings`.
+  - `/test-workflow`, `/nats/test`, `/redis/test` демонстрируют интеграции.
+  - Middleware логирует запросы и пишет метрики.
+- **SBS Worker** — async worker на Temporal SDK, обрабатывает учебный workflow `TestWorkflow`.
+- **Prometheus 2.52 + Grafana 10** — наблюдаемость. Скрейпинг API каждые 15 секунд, готовый дашборд `SBS Infrastructure`.
 
-Playbook `infrastructure/ansible/site.yml` конфигурирует bare-metal/VM окружение при помощи Docker-контейнеров.
+### Автоматизация миграций
+`entrypoint.py` запускается внутри контейнера API перед uvicorn: ждёт доступность базы (`wait_for_database`) и выполняет `command.upgrade` Alembic. Миграции лежат в `alembic/versions/`.
 
-```bash
-cd infrastructure/ansible
-ansible-galaxy collection install -r requirements.yml
-ansible-playbook site.yml -i inventories/hosts.ini
-```
+### OpenTelemetry поток
+`app/telemetry.py` регистрирует PrometheusMetricReader, а `configure_telemetry(app)` подключается в `app/api/main.py`. Все HTTP-запросы добавляются в счётчик и гистограмму; `/metrics` отдаёт экспозицию, которую собирает Prometheus.
 
-Основные роли:
+### CI/CD конвейер
+`.github/workflows/ci.yml`:
+1. `pytest`.
+2. Buildx сборка Docker-образа и push в GHCR (кроме PR).
+3. SBOM через Anchore и сканирование Trivy.
+4. Подписание Cosign (для push в `main`).
+5. `deploy-test` — Helm деплой в тестовый кластер (`scripts/deploy_test.sh`), если заданы секреты.
 
-- `common`, `docker` — подготовка ОС и установка Docker.
-- `postgresql`, `temporal`, `redis`, `nats` — сервисы стека.
-- `sbs_api` — развёртывание API и worker из контейнерного образа.
+---
 
-## Структура
+## Структура проекта
 
-- `docker-compose.yml` — локальный стек: PostgreSQL, Temporal Server, Temporal admin-tools, Redis, NATS, API и worker.
-- `alembic/`, `alembic.ini`, `entrypoint.py` — миграции и автоматический запуск.
-- `app/database.py` — SQLAlchemy engine/Session.
-- `app/models/` — SQLAlchemy-модели инфраструктуры (например, `SystemSetting`).
-- `app/temporal/` — клиент и worker Temporal.
-- `app/services/` — вспомогательные клиенты Redis (`cache.py`) и NATS (`nats_client.py`).
-- `app/workflows/`, `app/activities/` — тестовый workflow и activity.
-- `app/api/main.py` — FastAPI (`/health`, `/version`, `/test-workflow`, `/nats/test`, `/redis/test`, `/settings/{key}`), middleware и DI.
-- `run_worker.py`, `run_api.py` — точки запуска worker и API.
+### Корень
+- `docker-compose.yml` — локальное окружение.
+- `requirements.txt` — зависимости Python (API/worker).
+- `entrypoint.py` — ожидание БД и миграции (используется контейнером API).
+- `run_api.py`, `run_worker.py` — точки запуска в dev/CI.
+- `.github/workflows/ci.yml` — pipeline CI/CD.
+- `README.md` — текущий документ.
+
+### Приложение (`app/`)
+- `api/main.py` — FastAPI-приложение: эндпоинты, middleware логирования, стартап/шатунинг хуки.
+- `database.py` — конфигурация SQLAlchemy engine и `SessionLocal`.
+- `models/system.py` — модель `SystemSetting`.
+- `services/cache.py` — Redis-клиент с ленивым подключением и вспомогательными функциями.
+- `services/nats_client.py` — NATS-клиент, очередь и publish/wait утилиты.
+- `temporal/client.py` — функции подключения к Temporal (ленивый singleton, ожидание).
+- `temporal/worker.py` — worker, регистрирующий workflow и activity.
+- `workflows/test_workflow.py` и `activities/test_activity.py` — демонстрационный сценарий.
+- `telemetry.py` — настройка OpenTelemetry и запись метрик.
+- `__init__.py` — хранит версию приложения.
+
+### Миграции (`alembic/`)
+- `env.py`, `script.py.mako`, `versions/...` — стандартная структура Alembic.
+- `20251107000000_initial.py` — создаёт `system_settings`.
+
+### Инфраструктура (`deploy/`, `infrastructure/`, `monitoring/`, `scripts/`)
+- `deploy/helm/sbs` — основной Helm-чарт (API, worker) и вложенные чарты (`charts/postgresql`, `charts/temporal`, `charts/redis`, `charts/nats`). `values.yaml` задаёт образы и параметры.
+- `scripts/start_api.sh`, `scripts/start_worker.sh` — entrypoint-скрипты внутри контейнеров.
+- `scripts/deploy_test.sh` — Helm деплой для CI (принимает ссылку на образ).
+- `monitoring/prometheus/prometheus.yml` — scrape-конфигурация.
+- `monitoring/grafana/...` — провиженинг datasources и дашборда.
+- `infrastructure/terraform` — модули `network`, `kubernetes_cluster`, `virtual_machine` и окружение `environments/test`.
+- `infrastructure/ansible` — роли (`common`, `docker`, `postgresql`, `temporal`, `redis`, `nats`, `sbs_api`) и playbook `site.yml`.
+
+### Тесты
+- `tests/test_sanity.py` — минимальный sanity-тест (расширяется при развитии функциональности).
+
+---
 
 ## Переменные окружения
+Все контейнеры используют значения по умолчанию, поэтому для локальных запусков ничего настраивать не требуется. При необходимости можно переопределить:
 
-- `DATABASE_URL` или `DATABASE_HOST/PORT/USER/PASSWORD/NAME` — PostgreSQL.
-- `TEMPORAL_HOST`, `TEMPORAL_PORT`, `TEMPORAL_NAMESPACE` — Temporal SDK (по умолчанию `localhost:7233`, `default`).
-- `REDIS_URL` — адрес Redis (`redis://localhost:6379/0` по умолчанию).
-- `NATS_URL`, `NATS_SUBJECT` — подключение к NATS (`nats://localhost:4222`, `backup.test`).
-
-## CI/CD конвейер
-
-GitHub Actions workflow `.github/workflows/ci.yml` реализует этап E0.5:
-
-- `pytest` — юнит/интеграционные тесты.
-- `docker/build-push-action` — сборка multi-stage образа (см. `Dockerfile`) и публикация в GHCR.
-- `anchore/sbom-action` — генерация SBOM (`sbom.spdx.json`) на основе Syft.
-- `aquasecurity/trivy-action` — сканирование уязвимостей.
-- `cosign` — подпись образа (по digest).
-- `scripts/deploy_test.sh` — деплой в тестовый Kubernetes-кластер.
-
-### Секреты и переменные репозитория
-
-| Название | Обязательность | Описание |
+| Переменная | Назначение | Значение по умолчанию |
 | --- | --- | --- |
-| `COSIGN_PRIVATE_KEY` | ✅ | Приватный ключ Cosign (PEM), сохранённый в секрете. Используется через `env://COSIGN_PRIVATE_KEY`. |
-| `COSIGN_PASSWORD` | ✅ | Пароль к ключу Cosign. |
-| `KUBE_CONFIG_B64` | ✅ для деплоя | kubeconfig в Base64. Скрипт разворачивания декодирует его во временный файл. |
-| `KUBE_NAMESPACE` | ➖ | Тестовый namespace (по умолчанию `default`). |
-| `IMAGE_PULL_SECRET` | ➖ | Имя `imagePullSecret`, если образ приватный. |
+| `DATABASE_URL` или `DATABASE_*` | Подключение к PostgreSQL | `postgresql+psycopg://postgres:secret@db:5432/app_db` |
+| `TEMPORAL_HOST` / `PORT` / `NAMESPACE` | Temporal SDK | `temporal:7233`, `default` |
+| `REDIS_URL` | Redis | `redis://redis:6379/0` |
+| `NATS_URL` / `NATS_SUBJECT` | NATS | `nats://nats:4222`, `backup.test` |
+| `APP_BUILD` | Строка build-id | вычисляется из Git |
+| `OTEL_SERVICE_NAME` | Имя сервиса в метриках | `sbs-api` |
 
-Для доступа к GHCR в кластере необходимо создать secret `ghcr-credentials` (или задать свой) и передать его в Helm через `--set global.imagePullSecrets[0].name=ghcr-credentials`.
+---
 
-Workflow запускается на `pull_request` и `push` в `main`. Публикация образов, подпись и деплой выполняются только для ветки `main`.
+## CI/CD и окружения
+
+### GitHub Actions
+- **build-scan**:
+  - checkout → установка Python 3.12 → `pip install -r requirements.txt`
+  - `pytest`
+  - `docker/build-push-action` (push, если событие не PR)
+  - `anchore/sbom-action` → `actions/upload-artifact`
+  - `aquasecurity/trivy-action` (фейлит job при найденных уязвимостях)
+  - `cosign sign` и выгрузка `.sig/.att` (для ветки `main`)
+- **deploy-test**:
+  - `scripts/deploy_test.sh <IMAGE_REF>`
+  - `helm dependency build` и `helm upgrade --install`
+
+
+### Helm/Terraform/Ansible
+Для окружений за пределами docker-compose:
+- Helm-чарт служит эталонной спецификацией Kubernetes.
+- Terraform описывает сетевую инфраструктуру, EKS и вспомогательные ВМ.
+- Ansible автоматизирует bare-metal поставку: установка Docker и развёртывание контейнеров из образов.
+
+---
+
+## Диагностика и DoD
+| Действие | Ожидаемый результат |
+| --- | --- |
+| `Invoke-RestMethod http://localhost:8000/health` | `{"status":"healthy"}` |
+| `Invoke-RestMethod http://localhost:8000/version` | JSON с `version` и `build` |
+| `Invoke-RestMethod http://localhost:8000/test-workflow` | Возвращает `workflow_id` и `run_id`, в Temporal admin-tools видна завершённая задача |
+| `Invoke-RestMethod http://localhost:8000/nats/test` | Получаем эхо-сообщение |
+| `Invoke-RestMethod http://localhost:8000/redis/test` | Возвращает записанное значение |
+| `Invoke-RestMethod http://localhost:8000/settings/core.version` | Запись из таблицы `system_settings` |
+| `Invoke-RestMethod http://localhost:8000/metrics` | Prometheus-совместные метрики |
+| Grafana → `SBS Infrastructure` | Графики RPS, latency, 5xx, нагрузка |
+
+---
+
+
+С текущим состоянием кодовая база готова к финальному прогону CI/CD и выкладке в тестовый или продуктивный кластер. Одной командой `docker-compose up -d` вы получаете полностью рабочий контур для разработки и демонстрации. 
+
